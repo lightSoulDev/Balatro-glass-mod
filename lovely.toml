@@ -1,0 +1,581 @@
+[manifest]
+version = '1.0.0'
+dump_lua = true
+priority = 0
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''pseudoshuffle(temp_hand, pseudoseed('immolate'))
+
+            for i = 1, self.ability.extra.destroy do destroyed_cards[#destroyed_cards+1] = temp_hand[i] end'''
+position = 'at'
+payload = '''
+pseudoshuffle(temp_hand, pseudoseed('immolate'))
+
+for i = 1, self.ability.extra.destroy do
+    if SMODS.has_enhancement(temp_hand[i], 'm_glass') then
+        temp_hand[i].shattered = true
+    end
+
+    destroyed_cards[#destroyed_cards+1] = temp_hand[i]
+end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''local shattered_glass = 0
+                for k, val in ipairs(G.hand.highlighted) do
+                    if SMODS.has_enhancement(val, 'm_glass') then shattered_glass = shattered_glass + 1 end
+                end'''
+position = 'at'
+payload = '''
+local shattered_glass = 0
+                for k, val in ipairs(G.hand.highlighted) do
+                    if SMODS.has_enhancement(val, 'm_glass') then shattered_glass = shattered_glass + 1 end
+                end
+                print('Glass Joker [context.using_consumeable]: ' .. shattered_glass)
+                '''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''if self.ability.name == 'Glass Joker' and not context.blueprint then
+                local glasses = 0
+                for k, v in ipairs(context.glass_shattered) do
+                    if v.shattered then
+                        glasses = glasses + 1
+                    end
+                end'''
+position = 'at'
+payload = '''
+    if self.ability.name == 'Glass Joker' and not context.blueprint then
+                local glasses = 0
+                for k, v in ipairs(context.glass_shattered) do
+                    if v.shattered then
+                        glasses = glasses + 1
+                    end
+                end
+                print('Glass Joker [context.cards_destroyed]: ' .. glasses)
+                '''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''local glass_cards = 0
+                for k, val in ipairs(context.removed) do
+                    if val.shattered then glass_cards = glass_cards + 1 end
+                end'''
+position = 'at'
+payload = '''local glass_cards = 0
+                for k, val in ipairs(context.removed) do
+                    if val.shattered then glass_cards = glass_cards + 1 end
+                end
+                print('Removed cards: '.. #context.removed .. ' Glass cards: '.. glass_cards)
+                '''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'game.lua'  
+pattern = '''p_spectral_mega_1 =         {order = 32, discovered = false, name = "Mega Spectral Pack", weight = 0.07, kind = 'Spectral', cost = 8, pos = {x=3,y=4}, atlas = 'Booster', set = 'Booster', config = {extra = 4, choose = 2}},'''
+position = 'at'
+payload = '''p_spectral_mega_1 =         {order = 32, discovered = false, name = "Mega Spectral Pack", weight = 5, kind = 'Spectral', cost = 8, pos = {x=3,y=4}, atlas = 'Booster', set = 'Booster', config = {extra = 4, choose = 2}},'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'cardarea.lua'
+pattern = '''if self.config.type == 'deck' then 
+            for i = #self.cards, 1, -1 do 
+                if self.cards[i] ~= G.CONTROLLER.focused.target then
+                    if i == 1 or i%(self.config.thin_draw or 9) == 0 or i == #self.cards or math.abs(self.cards[i].VT.x - self.T.x) > 1 or math.abs(self.cards[i].VT.y - self.T.y) > 1  then
+                        if G.CONTROLLER.dragging.target ~= self.cards[i] then self.cards[i]:draw(v) end
+                    end
+                end
+            end
+        end'''
+position = 'at'
+payload = '''if self.config.type == 'deck' then 
+            for i = #self.cards, 1, -1 do 
+                if self.cards[i] ~= G.CONTROLLER.focused.target then
+                    if i <= 3 or i%(self.config.thin_draw or 9) == 0 or i == #self.cards or math.abs(self.cards[i].VT.x - self.T.x) > 1 or math.abs(self.cards[i].VT.y - self.T.y) > 1  then
+                        if G.CONTROLLER.dragging.target ~= self.cards[i] then self.cards[i]:draw(v) end
+                    end
+                end
+            end
+        end'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'cardarea.lua'  
+pattern = '''if self.config.type == 'discard' or self.config.type == 'deck' then
+        card = card or _cards[#_cards]
+    else'''
+position = 'at'
+payload = '''
+    if self.config.type == 'discard' or self.config.type == 'deck' then
+        card = card or _cards[1]
+    else
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''if self.sticker == 'Gold' then G.shared_stickers[self.sticker]:draw_shader('voucher', nil, self.ARGS.send_to_shader, true, self.children.center) end
+                end
+            end'''
+position = 'after'
+payload = '''
+    end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''elseif self.sprite_facing == 'back' then'''
+position = 'at'
+payload = '''
+    elseif self.sprite_facing == 'back' then
+        if (self.ability and (self.ability.name == "Glass Card" or self.ability.name == 'Glass Joker' or (false and G.GAME.selected_back and G.GAME.selected_back.name == 'Glass Deck' and self.ability.set == 'Joker') )) then
+            --Draw the main part of the card
+            if (self.edition and self.edition.negative) or (self.ability.name == 'Antimatter' and (self.config.center.discovered or self.bypass_discovery_center)) then
+                self.children.center:draw_shader_i('negative', nil, self.ARGS.send_to_shader)
+                if self.children.front and self.ability.effect ~= 'Stone Card' then
+                    self.children.front:draw_shader_i('negative', nil, self.ARGS.send_to_shader)
+                end
+            elseif not self.greyed then
+                self.children.center:draw_shader_i('dissolve')
+                --If the card has a front, draw that next
+                if self.children.front and self.ability.effect ~= 'Stone Card' then
+                    self.children.front:draw_shader_i('dissolve',  nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+                end
+            end
+
+            --If the card is not yet discovered
+            if not self.config.center.discovered and (self.ability.consumeable or self.config.center.unlocked) and not self.config.center.demo and not self.bypass_discovery_center then
+                local shared_sprite = (self.ability.set == 'Edition' or self.ability.set == 'Joker') and G.shared_undiscovered_joker or G.shared_undiscovered_tarot
+                local scale_mod = -0.05 + 0.05*math.sin(1.8*G.TIMERS.REAL)
+                local rotate_mod = 0.03*math.sin(1.219*G.TIMERS.REAL)
+
+                shared_sprite.role.draw_major = self
+                shared_sprite:draw_shader_i('dissolve', nil, nil, nil, self.children.center, scale_mod, rotate_mod)
+            end
+
+            if self.ability.name == 'Invisible Joker' and (self.config.center.discovered or self.bypass_discovery_center) then
+                self.children.center:draw_shader_i('voucher', nil, self.ARGS.send_to_shader)
+            end
+
+            --If the card has any edition/seal, add that here
+            if self.edition or self.seal or self.ability.eternal or self.ability.rental or self.ability.perishable or self.sticker or ((self.sticker_run and self.sticker_run ~= 'NONE') and G.SETTINGS.run_stake_stickers) or (self.ability.set == 'Spectral') or self.debuff or self.greyed or (self.ability.name == 'The Soul') or (self.ability.set == 'Voucher') or (self.ability.set == 'Booster') or self.config.center.soul_pos or self.config.center.demo then
+                
+                if (self.ability.set == 'Voucher' or self.config.center.demo) and (self.ability.name ~= 'Antimatter' or not (self.config.center.discovered or self.bypass_discovery_center)) then
+                    self.children.center:draw_shader_i('voucher', nil, self.ARGS.send_to_shader)
+                end
+                if self.ability.set == 'Booster' or self.ability.set == 'Spectral' then
+                    self.children.center:draw_shader_i('booster', nil, self.ARGS.send_to_shader)
+                end
+                if self.edition and self.edition.holo then
+                    self.children.center:draw_shader_i('holo', nil, self.ARGS.send_to_shader)
+                    if self.children.front and self.ability.effect ~= 'Stone Card' then
+                        self.children.front:draw_shader_i('holo', nil, self.ARGS.send_to_shader)
+                    end
+                end
+                if self.edition and self.edition.foil then
+                    self.children.center:draw_shader_i('foil', nil, self.ARGS.send_to_shader)
+                    if self.children.front and self.ability.effect ~= 'Stone Card' then
+                        self.children.front:draw_shader_i('foil', nil, self.ARGS.send_to_shader)
+                    end
+                end
+                if self.edition and self.edition.polychrome then
+                    self.children.center:draw_shader_i('polychrome', nil, self.ARGS.send_to_shader)
+                    if self.children.front and self.ability.effect ~= 'Stone Card' then
+                        self.children.front:draw_shader_i('polychrome', nil, self.ARGS.send_to_shader)
+                    end
+                end
+                if (self.edition and self.edition.negative) or (self.ability.name == 'Antimatter' and (self.config.center.discovered or self.bypass_discovery_center)) then
+                    self.children.center:draw_shader_i('negative_shine', nil, self.ARGS.send_to_shader)
+                end
+                if self.seal then
+                    G.shared_seals[self.seal].role.draw_major = self
+                    G.shared_seals[self.seal]:draw_shader_i('dissolve', nil, nil, nil, self.children.center)
+                    if self.seal == 'Gold' then G.shared_seals[self.seal]:draw_shader_i('voucher', nil, self.ARGS.send_to_shader, nil, self.children.center) end
+                end
+                if self.ability.eternal then
+                    G.shared_sticker_eternal.role.draw_major = self
+                    G.shared_sticker_eternal:draw_shader_i('dissolve', nil, nil, nil, self.children.center)
+                    G.shared_sticker_eternal:draw_shader_i('voucher', nil, self.ARGS.send_to_shader, nil, self.children.center)
+                end
+                if self.ability.perishable then
+                    G.shared_sticker_perishable.role.draw_major = self
+                    G.shared_sticker_perishable:draw_shader_i('dissolve', nil, nil, nil, self.children.center)
+                    G.shared_sticker_perishable:draw_shader_i('voucher', nil, self.ARGS.send_to_shader, nil, self.children.center)
+                end
+                if self.ability.rental then
+                    G.shared_sticker_rental.role.draw_major = self
+                    G.shared_sticker_rental:draw_shader_i('dissolve', nil, nil, nil, self.children.center)
+                    G.shared_sticker_rental:draw_shader_i('voucher', nil, self.ARGS.send_to_shader, nil, self.children.center)
+                end
+                if self.sticker and G.shared_stickers[self.sticker] then
+                    G.shared_stickers[self.sticker].role.draw_major = self
+                    G.shared_stickers[self.sticker]:draw_shader_i('dissolve', nil, nil, nil, self.children.center)
+                    G.shared_stickers[self.sticker]:draw_shader_i('voucher', nil, self.ARGS.send_to_shader, nil, self.children.center)
+                elseif (self.sticker_run and G.shared_stickers[self.sticker_run]) and G.SETTINGS.run_stake_stickers then
+                    G.shared_stickers[self.sticker_run].role.draw_major = self
+                    G.shared_stickers[self.sticker_run]:draw_shader_i('dissolve', nil, nil, nil, self.children.center)
+                    G.shared_stickers[self.sticker_run]:draw_shader_i('voucher', nil, self.ARGS.send_to_shader, nil, self.children.center)
+                end
+
+                if self.ability.name == 'The Soul' and (self.config.center.discovered or self.bypass_discovery_center) then
+                    local scale_mod = 0.05 + 0.05*math.sin(1.8*G.TIMERS.REAL) + 0.07*math.sin((G.TIMERS.REAL - math.floor(G.TIMERS.REAL))*math.pi*14)*(1 - (G.TIMERS.REAL - math.floor(G.TIMERS.REAL)))^3
+                    local rotate_mod = 0.1*math.sin(1.219*G.TIMERS.REAL) + 0.07*math.sin((G.TIMERS.REAL)*math.pi*5)*(1 - (G.TIMERS.REAL - math.floor(G.TIMERS.REAL)))^2
+
+                    G.shared_soul.role.draw_major = self
+                    G.shared_soul:draw_shader_i('dissolve',0, nil, nil, self.children.center,scale_mod, rotate_mod,nil, 0.1 + 0.03*math.sin(1.8*G.TIMERS.REAL),nil, 0.6)
+                    G.shared_soul:draw_shader_i('dissolve', nil, nil, nil, self.children.center, scale_mod, rotate_mod)
+                end
+
+                if self.config.center.soul_pos and (self.config.center.discovered or self.bypass_discovery_center) then
+                    local scale_mod = 0.07 + 0.02*math.sin(1.8*G.TIMERS.REAL) + 0.00*math.sin((G.TIMERS.REAL - math.floor(G.TIMERS.REAL))*math.pi*14)*(1 - (G.TIMERS.REAL - math.floor(G.TIMERS.REAL)))^3
+                    local rotate_mod = 0.05*math.sin(1.219*G.TIMERS.REAL) + 0.00*math.sin((G.TIMERS.REAL)*math.pi*5)*(1 - (G.TIMERS.REAL - math.floor(G.TIMERS.REAL)))^2
+
+                    if self.ability.name == 'Hologram' then
+                        self.hover_tilt = self.hover_tilt*1.5
+                        self.children.floating_sprite:draw_shader_i('hologram', nil, self.ARGS.send_to_shader, nil, self.children.center, 2*scale_mod, 2*rotate_mod)
+                        self.hover_tilt = self.hover_tilt/1.5
+                    else
+                        self.children.floating_sprite:draw_shader_i('dissolve',0, nil, nil, self.children.center,scale_mod, rotate_mod,nil, 0.1 + 0.03*math.sin(1.8*G.TIMERS.REAL),nil, 0.6)
+                        self.children.floating_sprite:draw_shader_i('dissolve', nil, nil, nil, self.children.center, scale_mod, rotate_mod)
+                    end
+                    
+                end
+                if self.debuff then
+                    self.children.center:draw_shader_i('debuff', nil, self.ARGS.send_to_shader)
+                    if self.children.front and self.ability.effect ~= 'Stone Card' then
+                        self.children.front:draw_shader_i('debuff', nil, self.ARGS.send_to_shader)
+                    end
+                end
+                if self.greyed then
+                    self.children.center:draw_shader_i('played', nil, self.ARGS.send_to_shader)
+                    if self.children.front and self.ability.effect ~= 'Stone Card' then
+                        self.children.front:draw_shader_i('played', nil, self.ARGS.send_to_shader)
+                    end
+                end
+            end
+        else
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''message = localize{type='variable',key='a_xmult',vars={self.ability.x_mult}},
+                                colour = G.C.MULT,'''
+position = 'at'
+payload = '''
+    message = localize{type='variable',key='a_xmult',vars={self.ability.x_mult}},
+    delay = 0.45,
+    colour = G.C.MULT,
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''v.vampired = true
+                                v:set_ability(G.P_CENTERS.c_base, nil, true)
+                                G.E_MANAGER:add_event(Event({
+                                    func = function()
+                                        v:juice_up()
+                                        v.vampired = nil
+                                        return true
+                                    end
+                                }))'''
+position = 'at'
+payload = '''
+    local center = G.P_CENTERS.c_base
+    v:set_ability(center, nil, true)
+    G.E_MANAGER:add_event(Event({
+        func = function()
+            v:juice_up()
+            v.vampired = nil
+            if G.GAME.selected_back.name == 'Glass Deck' then
+                v:set_ability(G.P_CENTERS.m_glass)
+            end
+            return true
+        end
+    }))
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''if self.ability.name == 'Midas Mask' and not context.blueprint then'''
+position = 'after'
+payload = '''
+    if G.GAME.selected_back.name == 'Glass Deck' then
+        return {
+            message = localize('k_nope_ex'),
+            colour = G.C.PURPLE,
+            card = self
+        }
+    end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''card_eval_status_text(context.blueprint_card or self, 'extra', nil, nil, nil, {message = localize('k_plus_stone'), colour = G.C.SECONDARY_SET.Enhanced})'''
+position = 'at'
+payload = '''
+    local message = localize('k_plus_stone')
+    if G.GAME.selected_back.name == 'Glass Deck' then
+        message = localize('k_plus_glass')
+    end
+    card_eval_status_text(context.blueprint_card or self, 'extra', nil, nil, nil, {message = message, colour = G.C.SECONDARY_SET.Enhanced})
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''local front = pseudorandom_element(G.P_CARDS, pseudoseed('marb_fr'))
+                        G.playing_card = (G.playing_card and G.playing_card + 1) or 1
+                        local card = Card(G.play.T.x + G.play.T.w/2, G.play.T.y, G.CARD_W, G.CARD_H, front, G.P_CENTERS.m_stone, {playing_card = G.playing_card})'''
+position = 'at'
+payload = '''
+    local front = pseudorandom_element(G.P_CARDS, pseudoseed('marb_fr'))
+        G.playing_card = (G.playing_card and G.playing_card + 1) or 1
+        local center = G.P_CENTERS.m_stone
+        if G.GAME.selected_back.name == 'Glass Deck' then
+            center = G.P_CENTERS.m_glass
+        end
+        local card = Card(G.play.T.x + G.play.T.w/2, G.play.T.y, G.CARD_W, G.CARD_H, front, center, {playing_card = G.playing_card})
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''local _card = create_playing_card({
+                            front = pseudorandom_element(G.P_CARDS, pseudoseed('cert_fr')), 
+                            center = G.P_CENTERS.c_base}, G.hand, nil, nil, {G.C.SECONDARY_SET.Enhanced})'''
+position = 'at'
+payload = '''
+    local center = G.P_CENTERS.c_base
+    if G.GAME.selected_back.name == 'Glass Deck' then
+        center = G.P_CENTERS.m_glass
+    end
+
+    local _card = create_playing_card({
+        front = pseudorandom_element(G.P_CARDS, pseudoseed('cert_fr')), 
+        center = center}, G.hand, nil, nil, {G.C.SECONDARY_SET.Enhanced})
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''create_playing_card({front = G.P_CARDS[_suit..'_'.._rank], center = pseudorandom_element(cen_pool, pseudoseed('spe_card'))}, G.hand, nil, i ~= 1, {G.C.SECONDARY_SET.Spectral})'''
+position = 'at'
+payload = '''
+    local center = pseudorandom_element(cen_pool, pseudoseed('spe_card'))
+    if G.GAME.selected_back.name == 'Glass Deck' then
+        center = G.P_CENTERS.m_glass
+    end
+    print('Creating spectral card with center: ' .. center .. ' and deck: ' .. G.GAME.selected_back.name)
+    create_playing_card({front = G.P_CARDS[_suit..'_'.._rank], center = center }, G.hand, nil, i ~= 1, {G.C.SECONDARY_SET.Spectral})
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'card.lua'  
+pattern = '''for i=1, #G.hand.highlighted do
+                G.E_MANAGER:add_event(Event({trigger = 'after',delay = 0.1,func = function() G.hand.highlighted[i]:set_ability(G.P_CENTERS[self.ability.consumeable.mod_conv]);return true end }))
+            end'''
+position = 'at'
+payload = '''
+    for i=1, #G.hand.highlighted do
+        local center = G.P_CENTERS[self.ability.consumeable.mod_conv]
+        if G.GAME.selected_back.name == "Glass Deck" then
+            center = G.P_CENTERS.m_glass
+        end
+        G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.5, func = function()
+            attention_text({
+                text = localize('k_nope_ex'),
+                scale = 1.3, 
+                hold = 1.4,
+                major = used_tarot,
+                backdrop_colour = G.C.SECONDARY_SET.Tarot,
+                align = (G.STATE == G.STATES.TAROT_PACK or G.STATE == G.STATES.SPECTRAL_PACK) and 'tm' or 'cm',
+                offset = {x = 0, y = (G.STATE == G.STATES.TAROT_PACK or G.STATE == G.STATES.SPECTRAL_PACK) and -0.2 or 0},
+                silent = true
+                })
+                G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.06*G.SETTINGS.GAMESPEED, blockable = false, blocking = false, func = function()
+                    play_sound('tarot2', 0.76, 0.4);return true end}))
+                play_sound('tarot2', 1, 0.4)
+                used_tarot:juice_up(0.3, 0.5)
+        return true end }))
+        G.E_MANAGER:add_event(Event({trigger = 'after',delay = 0.1,func = function() G.hand.highlighted[i]:set_ability(center);return true end }))
+    end 
+'''
+match_indent = true
+
+# [[patches]]
+# [patches.pattern]
+# target = 'back.lua'  
+# pattern = '''if self.effect.config.randomize_rank_suit then'''
+# position = 'before'
+# payload = '''
+#     if self.name == 'Glass Deck' then
+#         G.E_MANAGER:add_event(Event({
+#             func = function()
+#                 for k, v in pairs(G.playing_cards) do
+#                     v:set_ability(G.P_CENTERS.m_glass)
+#                 end
+#             return true
+#             end
+#         }))
+#     end
+# '''
+# match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'back.lua'  
+pattern = '''if self.effect.config.dollars then'''
+position = 'before'
+payload = '''
+    if self.effect.config.jokers then
+        delay(0.4)
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                for k, v in ipairs(self.effect.config.jokers) do
+                    G.E_MANAGER:add_event(Event({
+                        func = function()
+                            local _joker = add_joker(v.id, v.edition, k ~= 1)
+                            if v.edition then _joker:set_edition({[v.edition] = true}, true, true) end
+                            if v.eternal then _joker:set_eternal(true) end
+                            if v.rental then _joker:set_rental(true) end
+                            if v.pinned then _joker.pinned = true end
+                        return true
+                        end
+                    }))
+                end
+            return true
+            end
+        }))
+    end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'functions/state_events.lua'  
+pattern = '''destroyed = true
+            end'''
+position = 'after'
+payload = '''
+    for j = 1, #G.jokers.cards do
+        if G.jokers.cards[j].ability.name == 'Vampire' and G.GAME.selected_back.name == 'Glass Deck' then
+            destroyed = true
+        end
+
+        scoring_hand[i].shattered = true
+        if destroyed then break end
+    end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'functions/common_events.lua'  
+pattern = '''check_for_unlock({type = 'have_edition'})
+    end
+end '''
+position = 'after'
+payload = '''
+    if _type == 'Base' or _type == 'Enhanced' then 
+        if G.GAME.selected_back and G.GAME.selected_back.name == "Glass Deck" then
+            card:set_ability(G.P_CENTERS.m_glass)
+        end
+    end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'engine/sprite.lua'  
+pattern = '''function Sprite:draw_shader(_shader, _shadow_height, _send, _no_tilt, other_obj, ms, mr, mx, my, custom_shader, tilt_shadow)'''
+position = 'at'
+payload = '''
+function Sprite:draw_shader_i(_shader, _shadow_height, _send, _no_tilt, other_obj, ms, mr, mx, my, custom_shader, tilt_shadow)
+    self:draw_shader(_shader, _shadow_height, _send, _no_tilt, other_obj, ms, mr, mx, my, custom_shader, tilt_shadow, true)
+end
+
+function Sprite:draw_shader(_shader, _shadow_height, _send, _no_tilt, other_obj, ms, mr, mx, my, custom_shader, tilt_shadow, _invert)'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'engine/sprite.lua'  
+pattern = '''self:draw_self()'''
+position = 'at'
+payload = '''self:draw_self(nil, _invert)'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'engine/sprite.lua'  
+pattern = '''function Sprite:draw_self(overlay)'''
+position = 'at'
+payload = '''function Sprite:draw_self(overlay, invert)'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'engine/sprite.lua'  
+pattern = '''prep_draw(self, 1)'''
+position = 'at'
+payload = '''
+prep_draw(self, 1)
+local scaleX = 1/(self.scale.x/self.VT.w)
+local offsetX = 0
+if invert then
+    scaleX = scaleX * -1
+    offsetX = -71
+end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'engine/sprite.lua'  
+pattern = '''love.graphics.scale(1/(self.scale.x/self.VT.w), 1/(self.scale.y/self.VT.h))'''
+position = 'at'
+payload = '''
+love.graphics.scale(scaleX, 1/(self.scale.y/self.VT.h))
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'engine/sprite.lua'  
+pattern = '''self.atlas.image,
+            self.sprite,
+            0 ,0,'''
+position = 'at'
+payload = '''self.atlas.image,
+            self.sprite,
+            offsetX ,0,'''
+match_indent = true
